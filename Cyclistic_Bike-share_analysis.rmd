@@ -1,0 +1,214 @@
+---
+title: "Cyclistic Bike-share"
+author: "Ng Tri"
+date: '2022-03-14'
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# # # # # # # # # # # # # # # # # # # # # # # 
+# Install required packages
+# tidyverse for data import and wrangling
+# lubridate for date functions
+# ggplot for visualization
+# # # # # # # # # # # # # # # # # # # # # # #  
+
+```{r}
+library(tidyverse)
+library(lubridate) 
+library(ggplot2)  
+library(dplyr)
+setwd("D:\\DH\\3rd - Semester II\\Google Data Analytics\\Case study\\Data\\CSV")
+```
+
+#=====================
+# STEP 1: COLLECT DATA
+#=====================
+
+```{r}
+m1 <- read_csv("202101-divvy-tripdata.csv")
+m2 <- read.csv("202102-divvy-tripdata.csv")
+m3 <- read.csv("202103-divvy-tripdata.csv")
+m4 <- read.csv("202104-divvy-tripdata.csv")
+m5 <- read.csv("202105-divvy-tripdata.csv")
+m6 <- read.csv("202106-divvy-tripdata.csv")
+m7 <- read.csv("202107-divvy-tripdata.csv")
+m8 <- read.csv("202108-divvy-tripdata.csv")
+m9 <- read.csv("202109-divvy-tripdata.csv")
+m10 <- read.csv("202110-divvy-tripdata.csv")
+m11 <- read.csv("202111-divvy-tripdata.csv")
+m12 <- read.csv("202112-divvy-tripdata.csv")
+```
+
+#====================================================
+# STEP 2: WRANGLE DATA AND COMBINE INTO A SINGLE FILE
+#====================================================
+
+# Compare column names each of the files
+
+```{r}
+colnames(m1)
+colnames(m2)
+colnames(m3)
+colnames(m4)
+colnames(m5)
+colnames(m6)
+colnames(m7)
+colnames(m8)
+colnames(m9)
+colnames(m10)
+colnames(m11)
+colnames(m12)
+```
+
+# Combine data
+
+```{r}
+all_trips <- rbind(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12)
+```
+
+#======================================================
+# STEP 3: CLEAN UP AND ADD DATA TO PREPARE FOR ANALYSIS
+#======================================================
+
+```{r}
+colnames(all_trips)
+```
+```{r}
+nrow(all_trips)
+```
+```{r}
+dim(all_trips)
+```
+```{r}
+head(all_trips)
+```
+```{r}
+tail(all_trips)
+```
+```{r}
+str(all_trips)
+```
+```{r}
+summary(all_trips)
+```
+
+# Add columns that list the date, month, day, and year of each ride
+
+```{r}
+all_trips$date <- as.Date(all_trips$started_at)
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+```
+# Add a "ride_length" calculation to all_trips 
+```{r}
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+```
+
+# Inspect the structure of the columns
+```{r}
+str(all_trips)
+```
+
+# Convert "ride_length" from Factor to numeric
+```{r}
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+```
+
+# Remove "bad" data (ride length < 60 and docked bike)
+```{r}
+all_trips_v2 <- all_trips[!(all_trips$rideable_type == "docked_bike" |all_trips$ride_length<60),]
+```
+
+#=====================================
+# STEP 4: CONDUCT DESCRIPTIVE ANALYSIS
+#=====================================
+
+# Descriptive analysis on ride_length
+```{r}
+summary(all_trips_v2$ride_length)
+```
+# Compare members and casual users
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min)
+```
+# See the average ride time by each day for members vs casual users
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+#Correct order for day of the week
+
+```{r}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+# Run the code again
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+
+# analyze ridership data by type and weekday
+
+```{r}
+all_trips_v2 %>%
+  mutate(weekday = wday(started_at, label = TRUE)) %>%
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n()	 
+  ,average_duration = mean(ride_length)) %>%
+  arrange(member_casual, number_of_rides)
+```
+# Visualize the number of rides by rider type
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) +
+  geom_col(position = "dodge")
+
+```
+
+# Create a visualization for average duration
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+
+```
+
+#=================================================
+# STEP 5: EXPORT SUMMARY FILE FOR FURTHER ANALYSIS
+#=================================================
+
+```{r}
+counts <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+write.csv(counts, file = 'D:\\DH\\3rd - Semester II\\Google Data Analytics\\Case study\\Data\\CSV\\avg_ride_length.csv')
+```
+```{r}
+ride_counts <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = length)
+write.csv(ride_counts, file = 'D:\\DH\\3rd - Semester II\\Google Data Analytics\\Case study\\Data\\CSV\\number_of_rides.csv')
+```
+
+
